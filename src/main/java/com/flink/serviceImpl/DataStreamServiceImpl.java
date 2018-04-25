@@ -12,6 +12,8 @@ import org.apache.flink.streaming.connectors.redis.RedisSink;
 import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisConfigBase;
 import org.apache.flink.streaming.connectors.redis.common.config.FlinkJedisPoolConfig;
 import org.apache.kafka.clients.consumer.ConsumerConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.flink.dto.Message;
 import com.flink.service.DataStreamService;
@@ -21,6 +23,8 @@ import com.flink.util.GenericStockArrayToDtoFlatMapFunction;
 import com.flink.util.KafkaFlinkGenericDesrializerSchema;
 
 public class DataStreamServiceImpl implements DataStreamService {
+	
+	private Logger LOG = LoggerFactory.getLogger(getClass());
 
 	private StreamExecutionEnvironment environment = StreamExecutionEnvironment.getExecutionEnvironment();
 	
@@ -29,13 +33,21 @@ public class DataStreamServiceImpl implements DataStreamService {
 
 
 	public void addKafkaSource(String topicPattern) throws Exception {
+		
+		LOG.info("TOPIC = {}",topicPattern);
 
 		FlinkKafkaConsumer011<List<Message>> kafkaConsumerSource = new FlinkKafkaConsumer011<List<Message>>(topicPattern,
 				new KafkaFlinkGenericDesrializerSchema<List<Message>>(), getKafkaConsumerProperties());
 
+		LOG.info("Kakfa Consumer created.");
+		
 		DataStream<List<Message>> stream=environment.addSource(kafkaConsumerSource, getProducedType());
 		
+		LOG.info("Data Stream source added....");
+		
 		DataStream<Message> convertedStream=stream.flatMap(new GenericStockArrayToDtoFlatMapFunction<List<Message>>()).setParallelism(32);
+		
+		LOG.info("Data Stream source converted....");
 		
 		convertedStream.filter(new CustomFilterFunction())
 		.setParallelism(32)
